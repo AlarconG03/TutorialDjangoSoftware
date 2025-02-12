@@ -61,27 +61,18 @@ class ProductShowView(View):
         return render(request, self.template_name, viewData)
 
 class ProductForm(forms.Form):
-    name = forms.CharField(required=True)
-    price = forms.FloatField(required=True)
+    name = forms.CharField(required=True, error_messages={"required": "Name is required."})
+    price = forms.FloatField(required=True, min_value=0.01, error_messages={"required": "Price is required.", "min_value": "Price must be greater than zero."})
 
 class ProductCreateView(View):
     template_name = 'products/create.html'
 
     def get(self, request):
         form = ProductForm()
-        viewData = {
-            "title": "Create product",
-            "form": form
-        }
-        return render(request, self.template_name, viewData)
+        return render(request, self.template_name, {"title": "Create product", "form": form})
 
     def post(self, request):
         form = ProductForm(request.POST)
         if form.is_valid():
-            return redirect(form)
-        else:
-            viewData = {
-                "title": "Create product",
-                "form": form
-            }
-            return render(request, self.template_name, viewData)
+            return render(request, "products/created.html", {"title": "Product Created"})
+        return render(request, self.template_name, {"title": "Create product", "form": form})
