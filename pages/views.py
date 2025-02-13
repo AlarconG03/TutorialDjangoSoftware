@@ -4,6 +4,7 @@ from django.urls import reverse
 from django.views.generic import TemplateView, ListView
 from django.views import View
 from django import forms
+from pydantic import ValidationError
 from .models import Product
 
 # Create your views here.
@@ -65,22 +66,41 @@ class ProductShowView(View):
         product = get_object_or_404(Product, pk=product_id) 
         return render(request, self.template_name, viewData)
 
-class ProductForm(forms.Form):
-    name = forms.CharField(required=True, error_messages={"required": "Name is required."})
-    price = forms.FloatField(required=True, min_value=0.01, error_messages={"required": "Price is required.", "min_value": "Price must be greater than zero."})
+class ProductForm(forms.ModelForm):
+    #name = forms.CharField(required=True, error_messages={"required": "Name is required."})
+    #price = forms.FloatField(required=True, min_value=0.01, error_messages={"required": "Price is required.", "min_value": "Price must be greater than zero."})
+    class Meta:
+        model = Product
+        fields = ['name', 'price']
+
+    def clean_price(self):
+        price = self.cleaned_data.get('price')
+        if price is not None and price <= 0:
+            raise ValidationError('Price must be greater than zero.')
+        return price
 
 class ProductCreateView(View):
     template_name = 'products/create.html'
 
     def get(self, request):
         form = ProductForm()
-        return render(request, self.template_name, {"title": "Create product", "form": form})
+        viewData = {
+            "title": "Create product",
+            "form": form
+        }
+        return render(request, self.template_name, viewData)
 
     def post(self, request):
         form = ProductForm(request.POST)
         if form.is_valid():
-            return render(request, "products/created.html", {"title": "Product Created"})
-        return render(request, self.template_name, {"title": "Create product", "form": form})
+            form.save()
+            return redirect('index')
+        else:
+            viewData = {
+                "title": "Create product",
+                "form": form
+            }
+            return render(request, self.template_name, viewData)
 
 class ProductListView(ListView):
     model = Product
