@@ -1,9 +1,10 @@
 from django.http import HttpResponseRedirect
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
-from django.views.generic import TemplateView
+from django.views.generic import TemplateView, ListView
 from django.views import View
 from django import forms
+from .models import Product
 
 # Create your views here.
 class HomePageView(TemplateView):
@@ -25,39 +26,43 @@ class AboutPageView(TemplateView):
 class ContactPageView(TemplateView):
     template_name = 'pages/contact.html'
 
-class Product:
-    products = [
-        {"id":"1", "name":"TV", "description":"Best TV", "price": 500},
-        {"id":"2", "name":"iPhone", "description":"Best iPhone", "price": 300},
-        {"id":"3", "name":"Chromecast", "description":"Best Chromecast", "price": 99},
-        {"id":"4", "name":"Glasses", "description":"Best Glasses", "price": 50},
-    ]
+#class Product:
+ #   products = [
+  #      {"id":"1", "name":"TV", "description":"Best TV", "price": 500},
+   #     {"id":"2", "name":"iPhone", "description":"Best iPhone", "price": 300},
+    #    {"id":"3", "name":"Chromecast", "description":"Best Chromecast", "price": 99},
+     #   {"id":"4", "name":"Glasses", "description":"Best Glasses", "price": 50},
+    #]
 
 class ProductIndexView(View):
     template_name = 'products/index.html'
-    
-    def get(self, request):
-        viewData = {}
-        viewData["title"] = "Products - Online Store"
-        viewData["subtitle"] = "List of products"
-        viewData["products"] = Product.products
 
+    def get(self, request):
+        viewData = {
+            "title": "Products - Online Store",
+            "subtitle": "List of products",
+            "products": Product.objects.all()
+        }
         return render(request, self.template_name, viewData)
 
 class ProductShowView(View):
     template_name = 'products/show.html'
 
     def get(self, request, id):
-        if not id.isdigit() or int(id) not in range(1, len(Product.products) + 1):
+        try:
+            product_id = int(id)
+            if product_id < 1:
+                raise ValueError("Product id must be 1 or greater")
+            product = get_object_or_404(Product, pk=product_id)
+        except(ValueError, IndexError):
             return HttpResponseRedirect(reverse('home'))
         
-        viewData = {}
-        product = Product.products[int(id)-1]
-        viewData["title"] = product["name"] + " - Online Store"
-        viewData["subtitle"] = product["name"] + " - Product information"
-        viewData["product"] = product
-        viewData["price"] = product["price"]
-
+        viewData = {
+            "title": product.name + " - Online Store",
+            "subtitle": product.name + " - Product information",
+            "product": product
+        }
+        product = get_object_or_404(Product, pk=product_id) 
         return render(request, self.template_name, viewData)
 
 class ProductForm(forms.Form):
@@ -76,3 +81,14 @@ class ProductCreateView(View):
         if form.is_valid():
             return render(request, "products/created.html", {"title": "Product Created"})
         return render(request, self.template_name, {"title": "Create product", "form": form})
+
+class ProductListView(ListView):
+    model = Product
+    template_name = 'product_list.html'
+    context_object_name = 'products'  # This will allow you to loop through 'products' in your template
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = 'Products - Online Store'
+        context['subtitle'] = 'List of products'
+        return context
